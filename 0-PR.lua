@@ -210,6 +210,7 @@ function render_inline (ctx, w, max_h)
 
 		-- draw white keys
 		for i = 1, total_key_count do
+			if min_note_number  +  i > 128 then break end
 			k_x = get_offset_from_c(i, k_w)
 			if is_white_key_from_c (i) == 1 then
 				-- draw white keys border
@@ -233,6 +234,7 @@ function render_inline (ctx, w, max_h)
 
 		-- draw over black keys
 		for i = 1, total_key_count do
+			if min_note_number  +  i > 128 then break end
 			k_x = get_offset_from_c(i, k_w)
 			if is_white_key_from_c (i) == 0 then
 				ctx:set_source_rgba (.0, .0, .0, 1.0)
