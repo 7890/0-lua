@@ -174,12 +174,12 @@ function render_inline (ctx, w, max_h)
 	end
 
 	local pr_on=ctrl[1] -- show / hide pr
-	local k_count=ctrl[3] -- white key count (i.e. 7 (+5 black) == one octave)
+	local k_count=math.floor(ctrl[3]) -- white key count (i.e. 7 (+5 black) == one octave)
 	local k_w=w/k_count -- white key width
 	local k_h=ctrl[2] -- white key height
 	local k_x=0 -- horizontal drawing start position 
 	local k_y=h-k_h -- vertical drawing start positon, place keyboard at bottom
-	local k_first_c=ctrl[4] -- the first key is a c, from -1 ... 9
+	local k_first_c=math.floor(ctrl[4]) -- the first key is a c, from -1 ... 9
 	local total_key_count=get_black_and_white_key_count(k_count)
 
 	-- prepare text rendering
