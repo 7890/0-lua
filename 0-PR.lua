@@ -7,19 +7,54 @@ ardour {
 	description = [[Draw Piano Roll]]
 }
 
+-------------------------------------------------------------------------------
 --[[
 draw piano roll
 
 based on 0-Hello
+
+                      1 1 1
+ 1  2 3 4 5  6  7 8 9 0 1 2
+    1   2       3   4   5
+   |x| |x|     |x| |x| |x|
+|   |   |   |   |   |   |   |
+------------------------------
+ 1   2   3   4   5   6   7
+
+0   1   2   3   4   5   6
+*   *
+k_w k_w
+
+black keys width: 3*k_w/4
+
+black keys offset to left
+
+1, 4: 3 * k_w/8   (middle)
+
+2, 5:     k_w/4 (slightly right)
+
+3:        k_w/2 (slightly left)
+
+draw white:
+|   |   |
+       <.
+    |-->|
+draw black:
+|   |
+   <.
+  |-->|
+
 --]]
 
 -- return possible i/o configurations
+-------------------------------------------------------------------------------
 function dsp_ioconfig ()
 	-- -1, -1 = any number of channels as long as input and output count matches
 	return { [1] = { audio_in = -1, audio_out = -1}, }
 end
 
 -- control port(s)
+-------------------------------------------------------------------------------
 function dsp_params ()
 	return
 	{
@@ -30,12 +65,83 @@ function dsp_params ()
 	}
 end
 
+-------------------------------------------------------------------------------
 function dsp_init (rate)
+end
+
+-- get total number of invovled keys, for a given white key count, starting a C
+-------------------------------------------------------------------------------
+function get_black_and_white_key_count (white_key_count)
+	local octaves=math.floor(white_key_count / 7)
+	local black_keys=octaves*5
+	local remain=white_key_count % 7
+	if remain == 0 then
+		return white_key_count+black_keys
+	elseif remain == 1 then
+		return white_key_count+black_keys
+	elseif remain == 2 then
+		return white_key_count+black_keys+1
+	elseif remain == 3 then
+		return white_key_count+black_keys+2
+	elseif remain == 4 then
+		return white_key_count+black_keys+2
+	elseif remain == 5 then
+		return white_key_count+black_keys+3
+	elseif remain == 6 then
+		return white_key_count+black_keys+4
+	end
+end -- get_black_and_white_key_count()
+
+-------------------------------------------------------------------------------
+function get_offset_from_c (current_key, key_width)
+	local octaves=math.floor (current_key / 12)
+	local offset_base=octaves * 7 * key_width
+
+	-- white keys
+	if     current_key % 12 == 0 then 
+		return offset_base  + 0 * key_width
+	elseif current_key % 12 == 1 then
+		return offset_base  + 1 * key_width
+	elseif current_key % 12 == 3 then
+		return offset_base  + 2 * key_width
+	elseif current_key % 12 == 5 then
+		return offset_base  + 3 * key_width
+	elseif current_key % 12 == 6 then
+		return offset_base  + 4 * key_width
+	elseif current_key % 12 == 8 then
+		return offset_base  + 5 * key_width
+	elseif current_key % 12 == 10 then
+		return offset_base  + 6 * key_width
+
+	-- black keys
+	elseif current_key % 12 == 2 then
+		return offset_base  + 1 * key_width - 3 * key_width/8
+	elseif current_key % 12 == 4 then
+		return offset_base  + 2 * key_width -     key_width/4
+	elseif current_key % 12 == 7 then
+		return offset_base  + 4 * key_width -     key_width/2
+	elseif current_key % 12 == 9 then
+		return offset_base  + 5 * key_width - 3 * key_width/8
+	elseif current_key % 12 == 11 then
+		return offset_base  + 6 * key_width -     key_width/4
+	end
+end --get_offset_from_c
+
+-------------------------------------------------------------------------------
+function is_white_key_from_c (current_key)
+	if     current_key % 12 == 2 then return 0 --false
+	elseif current_key % 12 == 4 then return 0
+	elseif current_key % 12 == 7 then return 0
+	elseif current_key % 12 == 9 then return 0
+	elseif current_key % 12 == 11 then return 0
+	else return 1 --true
+	end
 end
 
 -- callback: process "n_samples" of audio
 -- ins, outs are http://manual.ardour.org/lua-scripting/class_reference/#C:FloatArray
 -- pointers to the audio buffers
+-------------------------------------------------------------------------------
 function dsp_run (ins, outs, n_samples)
 	local ctrl = CtrlPorts:array () -- get control port array (read/write)
 	-- forward audio if processing is not in-place
@@ -68,12 +174,13 @@ function render_inline (ctx, w, max_h)
 	end
 
 	local pr_on=ctrl[1] -- show / hide pr
-	local k_count=ctrl[3] -- white key count (i.e. 7 (+5 black)  == one octave)
+	local k_count=ctrl[3] -- white key count (i.e. 7 (+5 black) == one octave)
 	local k_w=w/k_count -- white key width
 	local k_h=ctrl[2] -- white key height
 	local k_x=0 -- horizontal drawing start position 
 	local k_y=h-k_h -- vertical drawing start positon, place keyboard at bottom
 	local k_first_c=ctrl[4] -- the first key is a c, from -1 ... 9
+	local total_key_count=get_black_and_white_key_count(k_count)
 
 	-- prepare text rendering
 	if not txt then
@@ -101,39 +208,39 @@ function render_inline (ctx, w, max_h)
 		ctx:rectangle (k_x,k_y,k_count*k_w,k_h)
 		ctx:fill ()
 
-		-- draw keys
-		for i = 1, k_count do
-			k_x = (i-1) * k_w -- advance horizontal pos
-
-			-- draw white keys border
-			ctx:set_source_rgba (.1, .1, .1, 1.0)
-			ctx:rectangle (k_x,k_y,k_w,k_h)
-			ctx:stroke ()
-
-			if i % 7 == 2 or i % 7 == 6 then -- black keys: place full middle of white, 2, 6
-				ctx:set_source_rgba (.0, .0, .0, 1.0)
-				ctx:rectangle (k_x- 3*k_w/8  , k_y, 3*k_w/4, 2*k_h/3)
-				ctx:fill ()
-			elseif i % 7 == 3 or (i > 0 and i % 7 == 0) then -- black keys: place slightly right, 3, 7
-				ctx:set_source_rgba (.0, .0, .0, 1.0)
-				ctx:rectangle (k_x- 2*k_w/8  , k_y, 3*k_w/4, 2*k_h/3)
-				ctx:fill ()
-			elseif i % 7 == 5 then -- black keys: place slightly left, 5
-				ctx:set_source_rgba (.0, .0, .0, 1.0)
-				ctx:rectangle (k_x- 4*k_w/8  , k_y, 3*k_w/4, 2*k_h/3)
-				ctx:fill ()
-			end -- if black key
-
-			if i % 7 == 1 and k_count <15 then --mark c, only if not more than 2 octaves
-				local c_x=k_first_c
-				if i> 7 then c_x=k_first_c+1 end
+		-- draw white keys
+		for i = 1, total_key_count do
+			k_x = get_offset_from_c(i, k_w)
+			if is_white_key_from_c (i) == 1 then
+				-- draw white keys border
 				ctx:set_source_rgba (.1, .1, .1, 1.0)
-				txt:set_text (string.format ("%d", c_x)) --write c number on key
-				local tw, th = txt:get_pixel_size ()
-				ctx:move_to (k_x+0.5,h-th-5)
-				txt:show_in_cairo_context (ctx)
-			end -- if c key
-		end -- for k_count
+				ctx:rectangle (k_x-k_w, k_y, k_w, k_h)
+				ctx:stroke ()
+				-- print ("i " .. i .. " k_x " .. k_x .. " white")
+
+				-- print octave number on c key
+				if i % 12 == 1 and total_key_count < 25 then
+					local c_x=k_first_c
+					if i > 12 then c_x=k_first_c+1 end
+					ctx:set_source_rgba (.1, .1, .1, 1.0)
+					txt:set_text (string.format ("%d", c_x)) --write c number on key
+					local tw, th = txt:get_pixel_size ()
+					ctx:move_to (k_x-k_w+0.5,h-th-5)
+					txt:show_in_cairo_context (ctx)
+				end
+			end
+		end -- for total_key_count
+
+		-- draw over black keys
+		for i = 1, total_key_count do
+			k_x = get_offset_from_c(i, k_w)
+			if is_white_key_from_c (i) == 0 then
+				ctx:set_source_rgba (.0, .0, .0, 1.0)
+				ctx:rectangle (k_x, k_y, 3*k_w/4, 2*k_h/3)
+				ctx:fill ()
+				-- print ("i " .. i .. " k_x " .. k_x .. " black")
+			end
+		end -- for total_key_count
 	end -- if pr_on
 	return {w, h}
 end -- render_inline()
