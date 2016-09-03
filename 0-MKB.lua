@@ -20,20 +20,34 @@ end
 function dsp_params ()
 	return
 	{
-		{ ["type"] = "input", name = "ShowKeyboard", min = 0, max = 1, default = 1, toggled = true }, --1
-		{ ["type"] = "input", name = "WhiteKeyHeight", min = 10, max = 100, default = 40 }, --2
-		{ ["type"] = "input", name = "WhiteKeyCount", min = 1, max = 127, default = 7, integer = true }, --3
-		{ ["type"] = "input", name = "FirstKeyC", min = -1, max = 9, default = 5, integer = true }, --4
-
+		{ ["type"] = "input",
+			name = "ShowKeyboard",
+			doc = "Show or hide piano roll",
+			min = 0, max = 1, default = 1, toggled = true }, --1
+		{ ["type"] = "input",
+			name = "WhiteKeyHeight",
+			doc = "Set height of white keys",
+			min = 10, max = 100, default = 40 }, --2
+		{ ["type"] = "input",
+			name = "WhiteKeyCount",
+			doc = "Set visible number of white keys starting from c",
+			min = 1, max = 70, default = 7, integer = true }, --3
+		{ ["type"] = "input",
+			name = "FirstKeyC",
+			doc = "Number of first visible c. -1 ... 9",
+			min = -1, max = 9, default = 5, integer = true }, --4
 		{ ["type"] = "input",
 			name = "ShowNoteStatus", --5
 			doc = "Show or hide note ON and OFF velocity bars",
 			min = 0, max = 1, default = 1, toggled = true },
-
 		{ ["type"] = "input",
 			name = "DisplayHeight", --6
 			doc = "Rastered height of inline widget",
 			min = 1, max = 11, default = 11, integer = true },
+		{ ["type"] = "input",
+			name = "ShowNoteHighlight", --7
+			doc = "Highlight keys with a dot when note is on", 
+			min = 0, max = 1, default = 1, toggled = true },
 	}
 end -- dsp_params()
 
@@ -72,8 +86,6 @@ function dsp_runmap (bufs, in_map, out_map, n_samples, offset)
 			elseif ev[1] >> 4 == 9 then --ON
 				note_on_buffer[ev[2] + 1]=ev[3]
 			end
----if e:size()==3 then
----end
 		end
 	end
 ---	self:shmem():atomic_set_int(0, pos)
@@ -156,8 +168,8 @@ end
 function render_inline (ctx, w, max_h)
 	local ctrl = CtrlPorts:array ()
 	local ns_on=ctrl[5] -- show / hide note status
-	local line_count = ctrl[6]
-	local line_height=10
+	local line_count = math.floor(ctrl[6])
+	local line_height = 10
 
 	local note_on_buffer = self:shmem():to_int(0):array()
 
@@ -169,18 +181,21 @@ function render_inline (ctx, w, max_h)
 	end
 
 	local pr_on=ctrl[1] -- show / hide pr
-	local k_count=ctrl[3] -- white key count (i.e. 7 (+5 black)  == one octave)
+	local kh_on=ctrl[7] -- highlight keys when note is on
+	local k_count=math.floor(ctrl[3]) -- white key count (i.e. 7 (+5 black)  == one octave)
 	local k_w=w/k_count -- white key width
 	local k_h=ctrl[2] -- white key height
 	local k_x=0 -- horizontal drawing start position 
 	local k_y=h-k_h -- vertical drawing start positon, place keyboard at bottom
-	local k_first_c=ctrl[4] -- the first key is a c, from -1 ... 9
+	local k_first_c=math.floor(ctrl[4]) -- the first key is a c, from -1 ... 9
 	local total_key_count=get_black_and_white_key_count(k_count)
 	local current_first_c=k_first_c
 	local min_note_number=(current_first_c+1)*12 --as received from ardour. 0 min
 
 	-- limit key roll height when total widget height is small
 	if k_h > h then k_h=h k_y=h-k_h end
+
+	local M_PI=3.14159265359
 
 	-- prepare text rendering
 	if not txt then
@@ -195,7 +210,7 @@ function render_inline (ctx, w, max_h)
 	ctx:fill ()
 
 	-- prepare line and dot rendering
-	ctx:set_line_cap (Cairo.LineCap.Round)
+	--- ctx:set_line_cap (Cairo.LineCap.Round)
 	ctx:set_line_width (1.0)
 
 	if pr_on > 0 then
@@ -206,7 +221,10 @@ function render_inline (ctx, w, max_h)
 
 		-- draw white keys
 		for i = 1, total_key_count do
+			if min_note_number  +  i > 128 then break end
+
 			k_x = get_offset_from_c(i, k_w)
+			local velo_height = (h - k_h) * note_on_buffer[min_note_number  +  i] / 128
 
 			if is_white_key_from_c (i) == 1 then
 				-- draw white keys border
@@ -214,6 +232,12 @@ function render_inline (ctx, w, max_h)
 				ctx:rectangle (k_x-k_w, k_y, k_w, k_h)
 				ctx:stroke ()
 				-- print ("i " .. i .. " k_x " .. k_x .. " white")
+				-- draw dot on key if note on
+				if (kh_on == 1 and note_on_buffer[min_note_number  +  i]>=0) then
+					ctx:set_source_rgba (.9, .1, .1, 1.0)
+					ctx:arc(k_x-k_w/2, h-5, 0.25*k_w, 0.0, 2 * M_PI)
+					ctx:fill()
+				end
 				-- print octave number on c key
 				if i % 12 == 1 and total_key_count < 25 then
 					local c_x=k_first_c
@@ -229,6 +253,7 @@ function render_inline (ctx, w, max_h)
 
 		-- draw over black keys
 		for i = 1, total_key_count do
+			if min_note_number  +  i > 128 then break end
 			k_x = get_offset_from_c(i, k_w)
 
 			if is_white_key_from_c (i) == 0 then
@@ -236,6 +261,12 @@ function render_inline (ctx, w, max_h)
 				ctx:rectangle (k_x, k_y, 3*k_w/4, 2*k_h/3)
 				ctx:fill ()
 				-- print ("i " .. i .. " k_x " .. k_x .. " black")
+				-- draw dot on key if note on
+				if (kh_on == 1 and note_on_buffer[min_note_number  +  i]>=0) then
+					ctx:set_source_rgba (.1, .9, .1, 1.0)
+					ctx:arc(k_x+3*k_w/8, k_y+5, 0.25*k_w, 0.0, 2 * M_PI)
+					ctx:fill()
+				end
 			end
 		end -- for total_key_count
 	end -- if pr_on
@@ -245,6 +276,7 @@ function render_inline (ctx, w, max_h)
 
 		-- draw white velocity bars
 		for i = 1, total_key_count do
+			if min_note_number  +  i > 128 then break end
 			k_x = get_offset_from_c(i, k_w)
 			local velo_height = (h - k_h) * note_on_buffer[min_note_number  +  i] / 128
 
@@ -252,14 +284,16 @@ function render_inline (ctx, w, max_h)
 				-- draw velocity bar
 				if (note_on_buffer[min_note_number  +  i]>=0) then
 					ctx:set_source_rgba (.9, .9, .9, 1.0)
-					ctx:rectangle (k_x-k_w, k_y-velo_height, k_w, velo_height)
-					ctx:fill()
+					ctx:move_to(k_x-k_w/2, k_y-velo_height)
+					ctx:rel_line_to (0, velo_height)
+					ctx:stroke()
 				end
 			end
 		end -- for total_key_count
 
 		-- draw black velocity bars
 		for i = 1, total_key_count do
+			if min_note_number  +  i > 128 then break end
 			k_x = get_offset_from_c(i, k_w)
 			local velo_height = (h - k_h) * note_on_buffer[min_note_number  +  i] / 128
 
@@ -267,8 +301,9 @@ function render_inline (ctx, w, max_h)
 				-- draw velocity bar
 				if (note_on_buffer[min_note_number  +  i]>=0) then
 					ctx:set_source_rgba (.0, .0, .0, 1.0)
-					ctx:rectangle (k_x, k_y-velo_height, 3*k_w/4, velo_height)
-					ctx:fill()
+					ctx:move_to(k_x+3*k_w/8, k_y-velo_height)
+					ctx:rel_line_to (0, velo_height)
+					ctx:stroke()
 				end
 			end
 		end -- for total_key_count
