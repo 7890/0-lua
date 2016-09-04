@@ -26,7 +26,17 @@ end
 function dsp_params ()
 	return
 	{
-		{ ["type"] = "input", name = "RotationStepNumber", min = 0, max = steps_per_rotation, default = 0 },
+		{ ["type"] = "input",
+			name = "RotationStepNumber",
+			doc = "Number of steps for 360 °, rotation divisor",
+			min = 0, max = steps_per_rotation, default = 0 },
+
+
+                { ["type"] = "input",
+                        name = "DisplayHeight",
+                        doc = "Rastered height of inline widget",
+                        min = 2, max = 11, default = 7, integer = true },
+
 	}
 end
 
@@ -62,10 +72,13 @@ function render_inline (ctx, w, max_h)
 	local ctrl = CtrlPorts:array () -- control port array
 	local rotation_32_step=math.floor(ctrl[1])
 
+	local line_count = math.floor(ctrl[2])
+	local line_height = 10
+
 	if (w > max_h) then
 		h = max_h
 	else
-		h = w
+		h = line_count * line_height
 	end
 
 	-- prepare text rendering
@@ -101,39 +114,42 @@ function render_inline (ctx, w, max_h)
 	local full_turn=2 * M_PI
 	local rotation_32_step_rad=(math.floor(rotation_32_step) / steps_per_rotation)
 
-	-- knob "3D" background
---	ctx:set_source_rgba (.0, .0, .0, 0.9)
---	ctx:arc(0+w/2, 4+h/2, h/3, 0, full_turn)
---	ctx:fill ()
 
-	-- knob background
-	ctx:set_source_rgba (.5, .9, .5, 1.0)
-	ctx:arc(w/2, h/2, h/3, 0.0, full_turn)
-	ctx:fill ()
+	if line_count > 2 then
+		-- knob "3D" background
+--		ctx:set_source_rgba (.0, .0, .0, 0.9)
+--		ctx:arc(0+w/2, 4+h/2, h/3, 0, full_turn)
+--		ctx:fill ()
 
-	-- knob inner
-	ctx:set_source_rgba (.1, .1, .1, 1.0)
-	ctx:arc(w/2, h/2, 0.9*h/3, 0, full_turn)
-	ctx:fill ()
+		-- knob background
+		ctx:set_source_rgba (.5, .9, .5, 1.0)
+		ctx:arc(w/2, h/2, h/3, 0.0, full_turn)
+		ctx:fill ()
 
-	-- directed cut, default north
-	local ang1=(-0.25 * M_PI) + rotation_32_step_rad * full_turn
-	local ang2=( 1.25 * M_PI) + rotation_32_step_rad * full_turn
+		-- knob inner
+		ctx:set_source_rgba (.1, .1, .1, 1.0)
+		ctx:arc(w/2, h/2, 0.9*h/3, 0, full_turn)
+		ctx:fill ()
 
-	ctx:set_source_rgba (.4, .9, .4, 1.0)
-	ctx:arc_negative(w/2, h/2, 0.91*h/3, ang1, ang2)
-	ctx:fill ()
+		-- directed cut, default north
+		local ang1=(-0.25 * M_PI) + rotation_32_step_rad * full_turn
+		local ang2=( 1.25 * M_PI) + rotation_32_step_rad * full_turn
 
-	-- directed line
-	ctx:set_source_rgba (.1, .1, .1, 1.0)
-	ctx:arc(w/2, h/2, h/3, 0, 1.5 * M_PI + rotation_32_step_rad * full_turn)
-	ctx:line_to(w/2,h/2)
-	ctx:stroke()
+		ctx:set_source_rgba (.4, .9, .4, 1.0)
+		ctx:arc_negative(w/2, h/2, 0.91*h/3, ang1, ang2)
+		ctx:fill ()
 
-	-- full knob outline
-	ctx:set_source_rgba (.1, .1, .1, 1.0)
-	ctx:arc(w/2, h/2, h/3, 0, full_turn)
-	ctx:stroke()
+		-- directed line
+		ctx:set_source_rgba (.1, .1, .1, 1.0)
+		ctx:arc(w/2, h/2, h/3, 0, 1.5 * M_PI + rotation_32_step_rad * full_turn)
+		ctx:line_to(w/2,h/2)
+		ctx:stroke()
+
+		-- full knob outline
+		ctx:set_source_rgba (.1, .1, .1, 1.0)
+		ctx:arc(w/2, h/2, h/3, 0, full_turn)
+		ctx:stroke()
+	end
 
 	-- write text, centered
 	txt:set_text (string.format ("%.0f",rotation_32_step));
@@ -142,6 +158,7 @@ function render_inline (ctx, w, max_h)
 
 	ctx:move_to ((w-tw)/2, h/2-th/2)
 	txt:show_in_cairo_context (ctx)
+
 
 	-- write text, top left
 	txt:set_text (string.format ("%s","foo"));
@@ -155,17 +172,20 @@ function render_inline (ctx, w, max_h)
 	ctx:move_to (w-padding-tw,0+padding)
 	txt:show_in_cairo_context (ctx)
 
-	-- write text, bottom left
-	txt:set_text (string.format ("%s","A"));
-	tw, th = txt:get_pixel_size ()
-	ctx:move_to (0+padding,h-padding-th)
-	txt:show_in_cairo_context (ctx)
 
-	-- write text, bottom right
-	txt:set_text (string.format ("%s","B"));
-	tw, th = txt:get_pixel_size ()
-	ctx:move_to (w-padding-tw,h-padding-th)
-	txt:show_in_cairo_context (ctx)
+	if line_count > 2 then
+		-- write text, bottom left
+		txt:set_text (string.format ("%s","A"));
+		tw, th = txt:get_pixel_size ()
+		ctx:move_to (0+padding,h-padding-th)
+		txt:show_in_cairo_context (ctx)
+
+		-- write text, bottom right
+		txt:set_text (string.format ("%s","B"));
+		tw, th = txt:get_pixel_size ()
+		ctx:move_to (w-padding-tw,h-padding-th)
+		txt:show_in_cairo_context (ctx)
+	end
 
 	return {w, h}
 end --render_inline()
