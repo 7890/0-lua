@@ -99,10 +99,10 @@ function dsp_init (rate)
 --[[
 	buffer layout (1-based array)
 
-	[1]: controller relative change (increment count - decrement count)
+	[1]: controller value: current value + relative change (increment count - decrement count)
 	[2]: controller last direction
 	[3]: push status
-	[4]: controllable relative change (increment count - decrement count)
+	[4]: controllable value: current value + relative change (increment count - decrement count)
 --]]
 	print ("'0-Pot.lua' initialized (dsp_init).")
 end
