@@ -30,7 +30,7 @@ function dsp_params ()
 		{ ["type"] = "input",
 			name = "DisplayHeight", --1
 			doc = "Rastered height of inline widget",
-			min = 2, max = 11, default = 11, integer = true },
+			min = 1, max = 4, default = 3, integer = true },
 
 		{ ["type"] = "input",
 			name = "DecrementImpulseControllerNumber", --2
@@ -258,6 +258,10 @@ end
 
 -------------------------------------------------------------------------------
 function dsp_runmap (bufs, in_map, out_map, n_samples, offset)
+	-- passthrough all data
+	ARDOUR.DSP.process_map (bufs, in_map, out_map, n_samples, offset, ARDOUR.DataType ("audio"))
+	ARDOUR.DSP.process_map (bufs, in_map, out_map, n_samples, offset, ARDOUR.DataType ("midi"))
+
 	local shared_buffer = self:shmem():to_int(0):array()
 	local tbl = self:table ():get () -- get shared memory table
 
@@ -267,10 +271,6 @@ function dsp_runmap (bufs, in_map, out_map, n_samples, offset)
 	local decrement_value_count=0
 	local increment_controllable_count=0
 	local decrement_controllable_count=0
-
-	-- passthrough all data
-	ARDOUR.DSP.process_map (bufs, in_map, out_map, n_samples, offset, ARDOUR.DataType ("audio"))
-	ARDOUR.DSP.process_map (bufs, in_map, out_map, n_samples, offset, ARDOUR.DataType ("midi"))
 
 	-- then fill the event buffer
 	local ib = in_map:get (ARDOUR.DataType ("midi"), 0) -- index of 1st midi input
@@ -350,11 +350,8 @@ function render_inline (ctx, w, max_h)
 	local selected_line = shared_buffer[4]
 	local line_count = math.floor(ctrl[1])
 
-	if (w > max_h) then
-		h = max_h
-	else
-		h = line_count * line_height
-	end
+	h = 2 * padding + line_count * line_height
+	if h > max_h then h=max_h end
 
 	-- prepare text rendering
 	-- http://manual.ardour.org/lua-scripting/class_reference/#Cairo:PangoLayout
@@ -372,8 +369,12 @@ function render_inline (ctx, w, max_h)
 			ctx:set_source_rgba (.9, .9, .9, 1.0)
 		end
 
-		if w < 100 and autohide_key==1 then key="" end
-		txt:set_text (string.format ("%s %s",key,value))
+		if w < 100 and autohide_key==1 then
+			txt:set_text (string.format ("%s",value))
+		else
+			txt:set_text (string.format ("%s %s",key,value))
+		end
+
 		local tw, th = txt:get_pixel_size ()
 		ctx:move_to (0+padding,line*line_height+padding)
 		txt:show_in_cairo_context (ctx)
@@ -385,13 +386,13 @@ function render_inline (ctx, w, max_h)
 	ctx:fill ()
 
 	--draw highlight
-	ctx:rectangle (0+padding, selected_line * line_height, w, padding+line_height)
+	ctx:rectangle (0+padding, padding + selected_line * line_height, w, padding+line_height)
 	ctx:set_source_rgba (.2, .9, .2, 0.5)
 	ctx:fill ()
 
-	draw_key_value_line (0, string.format("%d)",tbl['track_rid']), tbl['track_name'], true)
-	draw_key_value_line (1, string.format("%d)",tbl['plugin_id']), tbl['plugin_name'], true)
-	draw_key_value_line (2, string.format("%d)",tbl['plugin_param_id']), tbl['plugin_param_name'], true)
+	draw_key_value_line (0, string.format("%d)",tbl['track_rid']), tbl['track_name'], 1)
+	draw_key_value_line (1, string.format("%d)",tbl['plugin_id']), tbl['plugin_name'], 1)
+	draw_key_value_line (2, string.format("%d)",tbl['plugin_param_id']), tbl['plugin_param_name'], 1)
 
 	return {w, h}
 end -- render_inline()
