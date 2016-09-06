@@ -185,12 +185,12 @@ function render_inline (ctx, w, max_h)
 		draw_key_value_line (2, "phd", string.format ("%.2f", frames_to_seconds(tbl['playhead_pos']) ), 1 )
 		draw_key_value_line (3, "lst", string.format ("%.2f", frames_to_seconds(tbl['last_transport_start_pos'])), 1 )
 		draw_key_value_line (4, "len", string.format ("%.2f", frames_to_seconds((tbl['playhead_pos'] - tbl['last_transport_start_pos']))), 1 )
-		draw_key_value_line (5, "ses", string.format ("%.2f", frames_to_seconds((tbl['session_start_pos'] - tbl['playhead_pos']))), 1 )
-		draw_key_value_line (6, "see", string.format ("%.2f", frames_to_seconds((tbl['session_end_pos'] - tbl['playhead_pos']))), 1 )
-		draw_key_value_line (7, "los", string.format ("%.2f", frames_to_seconds((tbl['loop_start_pos'] - tbl['playhead_pos']))), 1 )
-		draw_key_value_line (8, "loe", string.format ("%.2f", frames_to_seconds((tbl['loop_end_pos'] - tbl['playhead_pos']))), 1 )
-		draw_key_value_line (9, "prv", string.format ("%.2f", frames_to_seconds((tbl['prev_marker_pos'] -tbl['playhead_pos']))), 1 )
-		draw_key_value_line (10, "nxt", string.format ("%.2f", frames_to_seconds((tbl['next_marker_pos'] - tbl['playhead_pos']))), 1 )
+		draw_key_value_line (5, "ses", string.format ("%.2f", frames_to_seconds((tbl['playhead_pos'] - tbl['session_start_pos']))), 1 )
+		draw_key_value_line (6, "see", string.format ("%.2f", frames_to_seconds((tbl['playhead_pos'] - tbl['session_end_pos']))), 1 )
+		draw_key_value_line (7, "los", string.format ("%.2f", frames_to_seconds((tbl['playhead_pos'] - tbl['loop_start_pos']))), 1 )
+		draw_key_value_line (8, "loe", string.format ("%.2f", frames_to_seconds((tbl['playhead_pos'] - tbl['loop_end_pos']))), 1 )
+		draw_key_value_line (9, "prv", string.format ("%.2f", frames_to_seconds((tbl['playhead_pos'] - tbl['prev_marker_pos']))), 1 )
+		draw_key_value_line (10, "nxt", string.format ("%.2f", frames_to_seconds((tbl['playhead_pos'] - tbl['next_marker_pos']))), 1 )
 	end
 
 	return {w, h}
