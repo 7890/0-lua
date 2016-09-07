@@ -63,10 +63,11 @@ function dsp_params ()
 		{ ["type"] = "input", name = "WhiteKeyCount", min = 1, max = 127, default = 7, integer = true }, --3
 		{ ["type"] = "input", name = "FirstKeyC", min = -1, max = 9, default = 5, integer = true }, --4
 	}
-end
+end -- dsp_params()
 
 -------------------------------------------------------------------------------
 function dsp_init (rate)
+	print ("'0-PR.lua' initialized (dsp_init).")
 end
 
 -- get total number of invovled keys, for a given white key count, starting a C
@@ -125,7 +126,7 @@ function get_offset_from_c (current_key, key_width)
 	elseif current_key % 12 == 11 then
 		return offset_base  + 6 * key_width -     key_width/4
 	end
-end --get_offset_from_c
+end -- get_offset_from_c()
 
 -------------------------------------------------------------------------------
 function is_white_key_from_c (current_key)
@@ -154,16 +155,12 @@ function dsp_run (ins, outs, n_samples)
 			ARDOUR.DSP.copy_vector (outs[c], ins[c], n_samples)
 		end
 	end
-
-	-- force redraw 
+	-- request redraw
 	self:queue_draw ()
-end
-
--------------------------------------------------------------------------------
---- inline display
+end -- dsp_run()
 
 local txt = nil -- cache font description (in GUI context)
-
+-------------------------------------------------------------------------------
 function render_inline (ctx, w, max_h)
 	local ctrl = CtrlPorts:array () -- control port array
 

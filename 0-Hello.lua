@@ -14,12 +14,14 @@ based on a-Pong / Ardour Lua Task Force
 --]]
 
 -- return possible i/o configurations
+-------------------------------------------------------------------------------
 function dsp_ioconfig ()
 	-- -1, -1 = any number of channels as long as input and output count matches
 	return { [1] = { audio_in = -1, audio_out = -1}, }
 end
 
 -- control port(s)
+-------------------------------------------------------------------------------
 function dsp_params ()
 	return
 	{
@@ -27,14 +29,17 @@ function dsp_params ()
 		{ ["type"] = "input", name = "StrokeWidth", min = 0, max = 50, default = 10 },
 		{ ["type"] = "input", name = "Transparency", min = 0, max = 1, default = .5 },
 	}
-end
+end -- dsp_params()
 
+-------------------------------------------------------------------------------
 function dsp_init (rate)
+	print ("'0-Hello.lua' initialized (dsp_init).")
 end
 
 -- callback: process "n_samples" of audio
 -- ins, outs are http://manual.ardour.org/lua-scripting/class_reference/#C:FloatArray
 -- pointers to the audio buffers
+-------------------------------------------------------------------------------
 function dsp_run (ins, outs, n_samples)
 	local ctrl = CtrlPorts:array () -- get control port array (read/write)
 	-- forward audio if processing is not in-place
@@ -47,16 +52,12 @@ function dsp_run (ins, outs, n_samples)
 			ARDOUR.DSP.copy_vector (outs[c], ins[c], n_samples)
 		end
 	end
-
-	-- force redraw 
+	-- request redraw
 	self:queue_draw ()
-end
-
--------------------------------------------------------------------------------
---- inline display
+end -- dsp_run()
 
 local txt = nil -- cache font description (in GUI context)
-
+-------------------------------------------------------------------------------
 function render_inline (ctx, w, max_h)
 	local ctrl = CtrlPorts:array () -- control port array
 
@@ -114,4 +115,5 @@ function render_inline (ctx, w, max_h)
 		ctx:stroke()
 	end
 	return {w, h}
-end --render_inline()
+end -- render_inline()
+-- EOF

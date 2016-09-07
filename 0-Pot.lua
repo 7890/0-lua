@@ -243,7 +243,7 @@ function dsp_runmap (bufs, in_map, out_map, n_samples, offset)
 	-- limit 0, 127
 	shared_buffer[4]=math.min(127, math.max(0, shared_buffer[4]+increment_controllable_count-decrement_controllable_count))
 
-	-- force redraw 
+	-- request redraw
 	self:queue_draw ()
 end -- dsp_runmap()
 

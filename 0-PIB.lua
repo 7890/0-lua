@@ -117,7 +117,7 @@ line    [4]: controllable value: relative change (increment count - decrement co
 	-- which allows to store/retrieve lua-tables to share them other interpreters
 	self:table ():set (tbl);
 
-	print ("'0-Pot.lua' initialized (dsp_init).")
+	print ("'0-PIB.lua' initialized (dsp_init).")
 end -- dsp_init()
 
 -------------------------------------------------------------------------------
@@ -335,7 +335,7 @@ function dsp_runmap (bufs, in_map, out_map, n_samples, offset)
 
 	--print ("track id " .. tbl['track_rid'] .. " name " .. tbl['track_name'] .. " plugin id " .. tbl['plugin_id'] .. " plugin name " .. tbl['plugin_name'])
 
-	-- request redraw 
+	-- request redraw
 	self:queue_draw ()
 end -- dsp_runmap()
 

@@ -106,7 +106,7 @@ function dsp_runmap (bufs, in_map, out_map, n_samples, offset)
 	-- "write back"
 	self:table ():set (tbl);
 
-	-- request redraw 
+	-- request redraw
 	self:queue_draw ()
 end -- dsp_runmap()
 
