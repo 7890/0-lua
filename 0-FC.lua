@@ -41,14 +41,13 @@ function dsp_params ()
 			name = "FadeSteps", --4
 			doc = "",
 			min = 1, max = 500, default = 64 },
-
 		{ ["type"] = "input",
 			name = "FadeAction", --5
 			doc = "",
 			min = -1, max = 1, default = 0, enum = true, scalepoints =
 			{
 				["Fade Out"] = -1,
-				["(None)"] = 0,
+				["(Released)"] = 0,
 				["Fade In"] = 1,
 			}
 		},
@@ -87,30 +86,28 @@ function dsp_runmap (bufs, in_map, out_map, n_samples, offset)
 	tbl['frames_since_start'] = tbl['frames_since_start'] + n_samples
 
 	tbl['track_index']=math.floor(ctrl[1])
-	tbl['fader_status']=math.floor(ctrl[5])
-
 	tbl['fader_min_gain']=ctrl[2]
 	tbl['fader_max_gain']=ctrl[3]
-
 	tbl['fade_steps']=math.floor(ctrl[4])
 	tbl['fade_steps_size']=1/tbl['fade_steps']
+
+	tbl['fader_status']=math.floor(ctrl[5])
 
 	local track = Session:get_remote_nth_route(tbl['track_index'])
 	if track:isnil() then return end
 	local ac = track:amp ():gain_control () -- ARDOUR:AutomationControl
 
 	local level=ac:get_value()
-	local fade_step_size=tbl['fade_steps_size']
 
 	-- fade in or out or don't do anything at all
 	if tbl['fader_status'] == -1 and not (tbl['fader_level'] == tbl['fader_min_gain']) then
-		ac:set_value( math.max(tbl['fader_min_gain'],level - fade_step_size) ,PBD.GroupControlDisposition.NoGroup)
+		ac:set_value( math.max(tbl['fader_min_gain'],level - tbl['fade_steps_size']) ,PBD.GroupControlDisposition.NoGroup)
 	elseif tbl['fader_status'] == 1 and not (tbl['fader_level'] == tbl['fader_max_gain']) then
-		ac:set_value( math.min(tbl['fader_max_gain'],level + fade_step_size),PBD.GroupControlDisposition.NoGroup)
+		ac:set_value( math.min(tbl['fader_max_gain'],level + tbl['fade_steps_size']),PBD.GroupControlDisposition.NoGroup)
 	end
 
 	-- possibly updated fader_level
-	tbl['fader_level'] = level
+	tbl['fader_level'] = ac:get_value()
 
 	self:table ():set (tbl);
 
