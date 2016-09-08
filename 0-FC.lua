@@ -17,7 +17,7 @@ fade speeds depends on period size and samplerate (not time)!
 -------------------------------------------------------------------------------
 function dsp_ioconfig ()
 	-- -1, -1 = any number of channels as long as input and output count matches
-	return { { midi_in = 1, midi_out = 1, audio_in = -1, audio_out = -1}, }
+	return { { audio_in = -1, audio_out = -1}, }
 end
 
 -- control port(s)
