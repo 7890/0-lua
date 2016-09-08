@@ -21,7 +21,7 @@ local line_height = 10
 -------------------------------------------------------------------------------
 function dsp_ioconfig ()
 	-- -1, -1 = any number of channels as long as input and output count matches
-	return { { midi_in = 1, midi_out = 1, audio_in = -1, audio_out = -1}, }
+	return { { audio_in = -1, audio_out = -1}, }
 end
 
 -- control port(s)
@@ -177,7 +177,7 @@ function render_inline (ctx, w, max_h)
 		draw_key_value_line (4, "len", string.format ("%d", (tbl['playhead_pos'] - tbl['last_transport_start_pos'])), 1 )
 		draw_key_value_line (5, "ses", string.format ("%d", (tbl['playhead_pos'] - tbl['session_start_pos'])), 1 )
 		draw_key_value_line (6, "see", string.format ("%d", (tbl['playhead_pos'] - tbl['session_end_pos'])), 1 )
-		draw_key_value_line (7, "los", string.format ("%d", (tbl['playhead_pos'] - tbl['loop_start_pos']])), 1 )
+		draw_key_value_line (7, "los", string.format ("%d", (tbl['playhead_pos'] - tbl['loop_start_pos'])), 1 )
 		draw_key_value_line (8, "loe", string.format ("%d", (tbl['playhead_pos'] - tbl['loop_end_pos'])), 1 )
 		draw_key_value_line (9, "prv", string.format ("%d", (tbl['playhead_pos'] - tbl['prev_marker_pos'])), 1 )
 		draw_key_value_line (10, "nxt", string.format ("%d", (tbl['playhead_pos'] - tbl['next_marker_pos'])), 1 )
