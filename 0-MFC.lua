@@ -109,7 +109,7 @@ end -- dsp_params()
 
 -------------------------------------------------------------------------------
 function dsp_init (rate)
-	print ("'0-2FC.lua' initialized (dsp_init).")
+	print ("'0-MFC.lua' initialized (dsp_init).")
 end -- dsp_init()
 
 -------------------------------------------------------------------------------
