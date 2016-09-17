@@ -16,12 +16,12 @@ for a given range of track indices (defined in 0-MFC), the track with the lowest
 a signal above the defined threshold (defined in 0-SD per track) will be faded in,
 all other tracks will be faded out (defined in 0-FC per track).
 
-using this plugin constellation can be used to have an array of fallback channels
+this plugin constellation can be used to have an array of fallback channels
 that switch "scene" by using the track's faders in a configurable way.
 
 the track with the highest index can be seen as the "background" track.
 the scenario works for simple 2 track cases and can extend to more demanding setups
-via grouped tracks and stacked sense logic.
+via tracks grouped as busses and with that the possibility to create sort of precedence trees.
 one could have on track index 0 the console microphone, and on the last track some elevator music.
 or on another track having a stream that's connected at a given time by an external process, that's
 only being played if no track with a higher priority (=lower index) is active or the opposite, 
@@ -39,7 +39,15 @@ however this is currently not implemented. it could be an alternative to record 
 master track if needed. this involves manually setting up everything for recording at this time.
 
 the main focus of 0-MFC is to operate the brilliant ardour mixer in an automatic live manner:
-to select and forward an input (only one) by signal level and precedence rules, turning off non-active inputs.
+to select and forward an input (only one) by signal level and precedence rules and turning off 
+or lowering the gain of non-active inputs.
+
+this can be useful for a hobbyist radio station to semi-automatically run a program, and to be 
+sure that something is on air at all times having connected a (possibly local, always playing) 
+source to the track with the highest index.
+
+if the auto fader logic is useful for semi-automatic / dynamic mixing in a non-standard way 
+(i.e. create a quickly changing random audio layer as a function of the array) has yet to be explored.
 
 a possible configuration and stack of processors on one track:
 
@@ -76,7 +84,7 @@ leave me a comment if anything doesn't work as you'd expect
 -------------------------------------------------------------------------------
 function dsp_ioconfig ()
 	-- -1, -1 = any number of channels as long as input and output count matches
-	return { { midi_in = 1, midi_out = 1, audio_in = -1, audio_out = -1}, }
+	return { { audio_in = -1, audio_out = -1}, }
 end
 
 -- control port(s)
