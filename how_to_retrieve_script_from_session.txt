@@ -1,0 +1,13 @@
+#!/bin/bash
+#//tb/1609
+
+#these programs are needed
+which xmlstarlet
+which base64
+
+#get total number scripts in ardour session file
+cat ./0-MFC_session_3chan.ardour | xmlstarlet sel -t -v "count(//script)" -n
+
+#retrieve first script element from ardour session file and decode it
+cat ./0-MFC_session_3chan.ardour | xmlstarlet sel -t -m "(//script)[1]" -v . | base64 -d
+
