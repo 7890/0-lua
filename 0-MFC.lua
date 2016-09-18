@@ -77,6 +77,9 @@ to control faders manually again:
 OR
 -deactivate 0-FC plugins on tracks
 
+hint: to switch the priority of a track after creating the array, simply move it to a lower index.
+make sure that 0-FC TrackSelection is set to automatic in order for this to work.
+
 leave me a comment if anything doesn't work as you'd expect
 --]]
 
@@ -88,9 +91,12 @@ function dsp_ioconfig ()
 end
 
 local sense_plugin='0-SD'
-local sense_plugin_output_port_name='StatusConfirmed'
+local sense_plugin_output_StatusConfirmed='StatusConfirmed'
+
 local control_plugin='0-FC'
-local control_plugin_input_port_name='FadeAction'
+local control_plugin_input_TrackSelection='TrackSelection'
+local control_plugin_input_TrackIndex='TrackIndex'
+local control_plugin_input_FadeAction='FadeAction'
 
 -- control port(s)
 -------------------------------------------------------------------------------
@@ -115,12 +121,17 @@ end -- dsp_params()
 --
 -------------------------------------------------------------------------------
 function get_route_id_by_index(index)
-	return Session:get_remote_nth_route(index):to_stateful():id():to_s()
+	if index==nil or index < 0 then return nil end
+	local r=Session:get_remote_nth_route(index)
+	if r:isnil() then return nil end
+	return r:to_stateful():id():to_s()
 end
 
 --
 ---------------------------------------------------------------------
 function get_nth_plugin_id_by_name(route_id, name, nth_match) --nth_match 0: first match
+	if route_id==nil or name==nil or nth_match==nil then return nil end
+
 	local r=Session:route_by_id(PBD.ID(route_id))
 	if r:isnil() then return nil end
 
@@ -147,6 +158,8 @@ end
 --
 -------------------------------------------------------------------------------
 function get_nth_plugin_parameter_index_by_name(plugin_id, name, nth_match) --nth_match 0: first match
+	if plugin_id==nil or name==nil or nth_match==nil then return nil end
+
 	local proc=Session:processor_by_id(PBD.ID(plugin_id))
 	if proc:isnil() then return nil end
 
@@ -178,6 +191,8 @@ end -- get_nth_plugin_parameter_index_by_name()
 --
 -------------------------------------------------------------------------------
 function get_plugin_control_value(plugin_id, param_index)
+	if plugin_id==nil or param_index==nil or param_index < 0 then return nil end
+
 	local proc=Session:processor_by_id(PBD.ID(plugin_id))
 	if proc:isnil() then return nil end
 
@@ -192,6 +207,8 @@ end
 --
 -------------------------------------------------------------------------------
 function set_plugin_control_value(plugin_id, param_index, value)
+	if plugin_id==nil or param_index==nil or param_index < 0 or value==nul then return nil end
+
 	local proc=Session:processor_by_id(PBD.ID(plugin_id))
 	if proc:isnil() then return nil end
 
@@ -212,10 +229,29 @@ end -- dsp_init()
 
 -------------------------------------------------------------------------------
 function fade(rid, direction) -- -1 fade_out +1 fade_in
+	if rid==nil or rid < 0 or direction==nil then return nil end
+
 	local plugin_id=get_nth_plugin_id_by_name(get_route_id_by_index(rid),control_plugin,0)
 	if plugin_id==nil then return false end
-	local param_index=get_nth_plugin_parameter_index_by_name(plugin_id, control_plugin_input_port_name, 0)
+
+	--if plugin has set TrackSelection to Automatic (1) then set track index
+	local param_index=get_nth_plugin_parameter_index_by_name(plugin_id, control_plugin_input_TrackSelection, 0)
 	if param_index==nil then return false end
+
+	local sel_style=get_plugin_control_value(plugin_id, param_index)
+	if sel_style==nil then return false end
+
+	if math.floor(sel_style) == 1 then --set track id
+
+		local param_index=get_nth_plugin_parameter_index_by_name(plugin_id, control_plugin_input_TrackIndex, 0)
+		if param_index==nil then return false end
+		set_plugin_control_value(plugin_id, param_index, rid)
+	end
+
+	--find and trigger fade action
+	local param_index=get_nth_plugin_parameter_index_by_name(plugin_id, control_plugin_input_FadeAction, 0)
+	if param_index==nil then return false end
+
 	return set_plugin_control_value(plugin_id, param_index, direction)
 end -- fade()
 
@@ -251,11 +287,9 @@ function dsp_runmap (bufs, in_map, out_map, n_samples, offset)
 	end
 
 	for track_index = first_track_index, first_track_index+track_count-1 do
-		--nil handling ...
-
 		local plugin_id=get_nth_plugin_id_by_name(get_route_id_by_index(track_index),sense_plugin,0)
 		if not(plugin_id==nil) then
-			local param_index=get_nth_plugin_parameter_index_by_name(plugin_id, sense_plugin_output_port_name, 0)
+			local param_index=get_nth_plugin_parameter_index_by_name(plugin_id, sense_plugin_output_StatusConfirmed, 0)
 			if not(param_index==nil) then
 				local val1=math.floor(get_plugin_control_value(plugin_id, param_index))
 				if val1 == 1 then
