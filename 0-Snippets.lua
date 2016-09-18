@@ -73,6 +73,7 @@ end
 
 --finding a route by other filters to store its PBD:ID
 ---------------------------------------------------------------------
+--[[
 function get_route_id_by_name_something(name, something)
 	for r in Session:get_routes():iter() do --there is also Session:get_tracks()
 		if (string.match (r:name(), name) and something==1) then --dummy filter
@@ -80,6 +81,7 @@ function get_route_id_by_name_something(name, something)
 		end
 	end
 end
+--]]
 
 --finding the nth instance of a plugin matching a given name on a route to store its PBD:ID
 --a plugin with the same name can easily appear twice or more on a track
@@ -152,7 +154,41 @@ function get_nth_plugin_parameter_index_by_name(plugin_id, name, nth_match) --nt
 	return nil
 end -- get_nth_plugin_parameter_index_by_name()
 
+--
+---------------------------------------------------------------------
+function set_plugin_control_value(plugin_id, param_index, value)
+	local proc=Session:processor_by_id(PBD.ID(plugin_id))
+	if proc:isnil() then return nil end
+
+	local pinsert=proc:to_insert()
+	if pinsert:isnil() then return nil end
+
+--not a good idea to try to set an output control value
+	return ARDOUR.LuaAPI.set_plugin_insert_param(pinsert,param_index,value)
+end
+
+--
+---------------------------------------------------------------------
+function get_plugin_control_value(plugin_id, param_index)
+	local proc=Session:processor_by_id(PBD.ID(plugin_id))
+	if proc:isnil() then return nil end
+
+	local pinsert=proc:to_insert()
+	if pinsert:isnil() then return nil end
+
+	local val,ok=ARDOUR.LuaAPI.get_plugin_insert_param(pinsert,param_index,ok)
+	if ok==false then return nil end
+	return val
+end
+
 --test1()
 local rid=get_route_id_by_index(0)
+--local rid=get_route_id_by_name('Audio')
+
 local pid=get_nth_plugin_id_by_name(rid, '0-SD', 0)
-local ppi=get_nth_plugin_parameter_index_by_name(pid,'Status',0)
+--local pid=get_plugin_id_by_index(rid, 0)
+
+local ppi=get_nth_plugin_parameter_index_by_name(pid,'Threshold',0)
+
+print(set_plugin_control_value(pid,ppi,1))
+print(get_plugin_control_value(pid,ppi))
