@@ -26,23 +26,32 @@ function dsp_params ()
 	return
 	{
 		{ ["type"] = "input",
-			name = "TrackIndex", --1
+			name = "TrackSelection", --1
+			doc = "",
+			min = 0, max = 1, default = 1, enum = true, scalepoints =
+			{
+				["Manual"] = 0,
+				["Automatic"] = 1,
+			}
+		},
+		{ ["type"] = "input",
+			name = "TrackIndex", --2
 			doc = "",
 			min = 0, max = 8, default = 0, integer = true },
 		{ ["type"] = "input",
-			name = "MinGain", --2
+			name = "MinGain", --3
 			doc = "",
 			min = 0, max = 1, default = 0 },
 		{ ["type"] = "input",
-			name = "MaxGain", --3
+			name = "MaxGain", --4
 			doc = "",
 			min = 0, max = 2, default = 1 },
 		{ ["type"] = "input",
-			name = "FadeSteps", --4
+			name = "FadeSteps", --5
 			doc = "",
 			min = 1, max = 500, default = 64 },
 		{ ["type"] = "input",
-			name = "FadeAction", --5
+			name = "FadeAction", --6
 			doc = "",
 			min = -1, max = 1, default = 0, enum = true, scalepoints =
 			{
@@ -59,6 +68,7 @@ function dsp_init (rate)
 	local tbl = {}
 	tbl['samplerate'] = 0
 	tbl['frames_since_start'] = 0
+	tbl['track_selection']=0
 	tbl['track_index']=0
 	tbl['fader_level']=0
 	-- -1: fading out
@@ -85,13 +95,14 @@ function dsp_runmap (bufs, in_map, out_map, n_samples, offset)
 	tbl['samplerate'] = Session:nominal_frame_rate ()
 	tbl['frames_since_start'] = tbl['frames_since_start'] + n_samples
 
-	tbl['track_index']=math.floor(ctrl[1])
-	tbl['fader_min_gain']=ctrl[2]
-	tbl['fader_max_gain']=ctrl[3]
-	tbl['fade_steps']=math.floor(ctrl[4])
+	tbl['track_selection']=math.floor(ctrl[1])
+	tbl['track_index']=math.floor(ctrl[2])
+	tbl['fader_min_gain']=ctrl[3]
+	tbl['fader_max_gain']=ctrl[4]
+	tbl['fade_steps']=math.floor(ctrl[5])
 	tbl['fade_steps_size']=1/tbl['fade_steps']
 
-	tbl['fader_status']=math.floor(ctrl[5])
+	tbl['fader_status']=math.floor(ctrl[6])
 
 	local track = Session:get_remote_nth_route(tbl['track_index'])
 	if track:isnil() then return end
