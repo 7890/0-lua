@@ -44,17 +44,22 @@ function dsp_params ()
 				["Evaluate"] = 2,
 			}
 		}, --4
-		--[[
-		 0 : under
-		 1 : over
-		--]]
-		{ ["type"] = "output", name = "Status", min = 0, max = 1, doc="" }, --5
-
-		--[[
-		 0 : under
-		 1 : over
-		--]]
-		{ ["type"] = "output", name = "StatusConfirmed", min = 0, max = 1, doc="" }, --6
+		{ ["type"] = "output", name = "Status", min = 0, max = 1, 
+			doc="Indicate current under/over status", enum = true,
+			scalepoints=
+			{
+				["under"] = 0,
+				["over"] = 1,
+			}
+		}, --5
+		{ ["type"] = "output", name = "StatusConfirmed", min = 0, max = 1,
+			doc="Indicate delayed/confirmed under/over status", enum = true,
+			scalepoints=
+			{
+				["under"] = 0,
+				["over"] = 1,
+			}
+		}, --6
 	}
 end -- dsp_params()
 
