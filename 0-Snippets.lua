@@ -81,7 +81,7 @@ function get_nth_plugin_id_by_name(route_id, name, nth_match) --nth_match 0: fir
 	if r:isnil() then return nil end
 
 	--getting plugin count (?)
-	local plugin
+	local proc
 	local matches=0
 	local i=0
 	--try and error
