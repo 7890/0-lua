@@ -35,18 +35,26 @@ function dsp_params ()
 		{ ["type"] = "input", name = "ConfirmDelayUnder", min = 0, max = 60, default = 2, doc = "s" }, --2
 		{ ["type"] = "input", name = "ConfirmDelayOver", min = 0, max = 60, default = 2, doc = "s" }, --3
 
+		{ ["type"] = "input", name = "LockOutputStatus", min = 0, max = 2, default = 2,
+			doc = "Set operation mode of StatusConfirmed output port.",
+			enum = true, scalepoints =
+			{
+				["Lock to 0"] = 0,
+				["Lock to 1"] = 1,
+				["Evaluate"] = 2,
+			}
+		}, --4
 		--[[
 		 0 : under
 		 1 : over
 		--]]
-		{ ["type"] = "output", name = "Status", min = 0, max = 1, doc="" }, --4
+		{ ["type"] = "output", name = "Status", min = 0, max = 1, doc="" }, --5
 
 		--[[
 		 0 : under
 		 1 : over
 		--]]
-		{ ["type"] = "output", name = "StatusConfirmed", min = 0, max = 1, doc="" }, --5
-
+		{ ["type"] = "output", name = "StatusConfirmed", min = 0, max = 1, doc="" }, --6
 	}
 end -- dsp_params()
 
@@ -85,10 +93,17 @@ function dsp_runmap (bufs, in_map, out_map, n_samples, offset)
 
 	-- startup condition
 	if tbl['frames_since_start'] == n_samples then
-		ctrl[4]=0
 		ctrl[5]=0
+		ctrl[6]=0
 		tbl['last_change_frames']=tbl['frames_since_start']
 		tbl['last_change_confirmed_frames']=tbl['frames_since_start']
+		self:table ():set (tbl)
+	end
+
+	if not(math.floor(ctrl[4]) == 2) then
+		ctrl[6]=ctrl[4] --locked to 0 or 1
+		self:queue_draw ()
+		return --already done
 	end
 
 	local threshold = 10 ^ (.05 * ctrl[1]) -- dBFS to coefficient
@@ -101,26 +116,26 @@ function dsp_runmap (bufs, in_map, out_map, n_samples, offset)
 
 			if a < threshold then
 				tbl['under_range_count']=tbl['under_range_count']+1
-				if not(ctrl[4] == 0) then --if previous cycle wasn't the same
+				if not(ctrl[5] == 0) then --if previous cycle wasn't the same
 					tbl['last_change_frames']=tbl['frames_since_start'] --reset timer
-					ctrl[4]=0
+					ctrl[5]=0
 				end
 
-				if not (ctrl[5] == 0) and tbl['frames_since_start'] - tbl['last_change_frames'] > ctrl[2] * tbl['samplerate'] then
-					ctrl[5] = 0
+				if not (ctrl[6] == 0) and tbl['frames_since_start'] - tbl['last_change_frames'] > ctrl[2] * tbl['samplerate'] then
+					ctrl[6] = 0
 					tbl['last_change_confirmed_frames']=tbl['frames_since_start']
 					print("under TRIGGER " .. tbl['frames_since_start'] .. " " .. tbl['last_change_frames'])
 				end
 
 			else
 				tbl['over_range_count']=tbl['over_range_count']+1
-				if not(ctrl[4] == 1) then
+				if not(ctrl[5] == 1) then
 					tbl['last_change_frames']=tbl['frames_since_start']
-					ctrl[4]=1
+					ctrl[5]=1
 				end
 
-				if not (ctrl[5] == 1) and tbl['frames_since_start'] - tbl['last_change_frames'] > ctrl[3] * tbl['samplerate'] then
-					ctrl[5] = 1
+				if not (ctrl[6] == 1) and tbl['frames_since_start'] - tbl['last_change_frames'] > ctrl[3] * tbl['samplerate'] then
+					ctrl[6] = 1
 					tbl['last_change_confirmed_frames']=tbl['frames_since_start']
 					print("over TRIGGER " .. tbl['frames_since_start'] .. " " .. tbl['last_change_frames'])
 				end
@@ -128,7 +143,7 @@ function dsp_runmap (bufs, in_map, out_map, n_samples, offset)
 		end -- valid channel mapping
 	end -- for channels
 
-	self:table ():set (tbl);
+	self:table ():set (tbl)
 	-- request redraw 
 	self:queue_draw ()
 end -- dsp_runmap()
