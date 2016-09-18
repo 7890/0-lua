@@ -47,6 +47,12 @@ function get_route_id_by_name(name)
 	return Session:route_by_name(name):to_stateful():id():to_s()
 end
 
+--finding a route by index to store its PBD:ID
+---------------------------------------------------------------------
+function get_route_id_by_index(index)
+	return Session:get_remote_nth_route(index):to_stateful():id():to_s()
+end
+
 --other _by_name methods:
 --[[
 	Port		ARDOUR:AudioEngine	get_port_by_name
@@ -99,3 +105,16 @@ function get_nth_plugin_id_by_name(route_id, name, nth_match) --nth_match 0: fir
 	until proc:isnil()
 	return nil
 end
+
+--finding a plugin at the given index on a route to store its PBD:ID
+---------------------------------------------------------------------
+function get_plugin_id_by_index(route_id, index)
+	local r=Session:route_by_id(PBD.ID(route_id))
+	if r:isnil() then return nil end
+
+	local proc = t:nth_plugin (index)
+	if proc:isnil() then return nil end
+
+	return proc:to_stateful():id():to_s()
+end
+
