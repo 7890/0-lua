@@ -55,13 +55,13 @@ a possible configuration and stack of processors on one track:
 
 -input trim (enable in preferences)
 -custom meter point (enable with button at bottom right of strip)
--0-SD (silence detection lua script, plugin index 0, reading input before fader)* /!\
--0-FC (fader control, plugin index 1)**
+-0-SD (silence detection lua script, plugin index 0, reading input before fader)*
+-0-FC (fader control, plugin index 1)* **
 -a-Inline Scope (showing trimmed input signal)
 -fader (auto controlled, having effect on output signal)
 -a-Inline Scope (showing trimmed & faded output signal going to master)
 
-*0-MFC looks for the 0-SD plugin on involved tracks at index 0, always.
+*0-MFC looks for the *first* 0-SD and 0-FC plugins found on involved tracks
 **set input param TrackIndex to the index of the track where the 0-FC plugin is on
 
 -duplicate track n times (there is currently a non-hard limit for 16 tracks)
@@ -87,6 +87,11 @@ function dsp_ioconfig ()
 	return { { audio_in = -1, audio_out = -1}, }
 end
 
+local sense_plugin='0-SD'
+local sense_plugin_output_port_name='StatusConfirmed'
+local control_plugin='0-FC'
+local control_plugin_input_port_name='FadeAction'
+
 -- control port(s)
 -------------------------------------------------------------------------------
 function dsp_params ()
@@ -107,39 +112,111 @@ function dsp_params ()
 	}
 end -- dsp_params()
 
+--
+-------------------------------------------------------------------------------
+function get_route_id_by_index(index)
+	return Session:get_remote_nth_route(index):to_stateful():id():to_s()
+end
+
+--
+---------------------------------------------------------------------
+function get_nth_plugin_id_by_name(route_id, name, nth_match) --nth_match 0: first match
+	local r=Session:route_by_id(PBD.ID(route_id))
+	if r:isnil() then return nil end
+
+	--getting plugin count (?)
+	local proc
+	local matches=0
+	local i=0
+	--try and error
+	repeat
+		-- get Nth Ardour::Processor
+		proc = r:nth_plugin (i)
+		if (not proc:isnil() and proc:display_name () == name) then
+			if matches == nth_match then
+				return proc:to_stateful():id():to_s()
+			else
+				matches=matches+1
+			end
+		end
+		i = i + 1
+	until proc:isnil()
+	return nil
+end
+
+--
+-------------------------------------------------------------------------------
+function get_nth_plugin_parameter_index_by_name(plugin_id, name, nth_match) --nth_match 0: first match
+	local proc=Session:processor_by_id(PBD.ID(plugin_id))
+	if proc:isnil() then return nil end
+
+	local pinsert=proc:to_insert()
+	if pinsert:isnil() then return nil end
+
+	local plugin=pinsert:plugin(0)
+	--this includes both input AND output ports
+	local param_count=plugin:parameter_count()
+	--print(param_count)
+
+	local matches=0
+
+	for param_index=0,param_count-1 do
+		local _,pd = plugin:get_parameter_descriptor(param_index,ARDOUR.ParameterDescriptor())
+		-- t[2].label --.. " " .. t[2].lower .. " " .. t[2].upper
+		if pd[2].label == name then
+			if matches == nth_match then
+				--local ctrl = Evoral.Parameter(ARDOUR.AutomationType.PluginAutomation,0,param_index)
+				return param_index
+			else
+				matches=matches+1
+			end
+		end
+	end
+	return nil
+end -- get_nth_plugin_parameter_index_by_name()
+
+--
+-------------------------------------------------------------------------------
+function get_plugin_control_value(plugin_id, param_index)
+	local proc=Session:processor_by_id(PBD.ID(plugin_id))
+	if proc:isnil() then return nil end
+
+	local pinsert=proc:to_insert()
+	if pinsert:isnil() then return nil end
+
+	local val,ok=ARDOUR.LuaAPI.get_plugin_insert_param(pinsert,param_index,ok)
+	if ok==false then return nil end
+	return val
+end
+
+--
+-------------------------------------------------------------------------------
+function set_plugin_control_value(plugin_id, param_index, value)
+	local proc=Session:processor_by_id(PBD.ID(plugin_id))
+	if proc:isnil() then return nil end
+
+	local pinsert=proc:to_insert()
+	if pinsert:isnil() then return nil end
+
+	--not a good idea to try to set an output control value
+	return ARDOUR.LuaAPI.set_plugin_insert_param(pinsert,param_index,value)
+end
+
+--
 -------------------------------------------------------------------------------
 function dsp_init (rate)
+--	local tbl = {}
+--	self:table ():set (tbl);
 	print ("'0-MFC.lua' initialized (dsp_init).")
 end -- dsp_init()
 
 -------------------------------------------------------------------------------
-function get_plugin_param_value(rid, pid, param_id)
-	local track = Session:get_remote_nth_route(rid)
-	if track:isnil() then return nil end
-	local proc = track:nth_plugin (pid)
-	if proc:isnil() then return nil end
-	local pinsert=proc:to_insert()
-	if pinsert:isnil() then return nil end
-	local outval=ARDOUR.LuaAPI.get_plugin_insert_param(pinsert,param_id)
-
-	return outval
-end -- get_plugin_param_value()
-
--------------------------------------------------------------------------------
 function fade(rid, direction) -- -1 fade_out +1 fade_in
-	local pid=1
-	local fade_param_id=4
-
-	local track = Session:get_remote_nth_route(rid)
-	if track:isnil() then return nil end
-	local proc = track:nth_plugin (pid)
-	if proc:isnil() then return nil end
-	local pinsert=proc:to_insert()
-	if pinsert:isnil() then return nil end
-
-	ARDOUR.LuaAPI.set_plugin_insert_param(pinsert,fade_param_id,direction)
-
-	--print("set " .. rid .. " direction " .. direction )
+	local plugin_id=get_nth_plugin_id_by_name(get_route_id_by_index(rid),control_plugin,0)
+	if plugin_id==nil then return false end
+	local param_index=get_nth_plugin_parameter_index_by_name(plugin_id, control_plugin_input_port_name, 0)
+	if param_index==nil then return false end
+	return set_plugin_control_value(plugin_id, param_index, direction)
 end -- fade()
 
 -------------------------------------------------------------------------------
@@ -174,15 +251,23 @@ function dsp_runmap (bufs, in_map, out_map, n_samples, offset)
 	end
 
 	for track_index = first_track_index, first_track_index+track_count-1 do
-		local val1=get_plugin_param_value(track_index,0,4) --get from first plugin on strip 5th value
-		if val1 == 1 then
-			fade_out_all_except(track_index)
-			fade_in(track_index)
-			ctrl[3]=track_index
-			break;
-		elseif val1 == 0 then
-			fade_out(track_index)
-		end
+		--nil handling ...
+
+		local plugin_id=get_nth_plugin_id_by_name(get_route_id_by_index(track_index),sense_plugin,0)
+		if not(plugin_id==nil) then
+			local param_index=get_nth_plugin_parameter_index_by_name(plugin_id, sense_plugin_output_port_name, 0)
+			if not(param_index==nil) then
+				local val1=math.floor(get_plugin_control_value(plugin_id, param_index))
+				if val1 == 1 then
+					fade_out_all_except(track_index)
+					fade_in(track_index)
+					ctrl[3]=track_index
+					break;
+				elseif val1 == 0 then
+					fade_out(track_index)
+				end
+			end --param_index not nil
+		end --plugin_id not nil
 	end --for involved tracks
 
 	-- request redraw 
