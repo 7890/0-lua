@@ -5,6 +5,7 @@
 --about ids and lookups
 ---------------------------------------------------------------------
 
+function test1()
 --get ARDOUR:Route with remote id 0 (route is at index 0)
 local t=Session:get_remote_nth_route(0)
 if t:isnil() then print ('is nil') end
@@ -40,6 +41,7 @@ if y:isnil() then print ('is nil') end
 
 --showing id again
 print(y:to_stateful():id():to_s())
+end -- test1()
 
 --finding a route by name to store its PBD:ID
 ---------------------------------------------------------------------
@@ -80,7 +82,7 @@ function get_route_id_by_name_something(name, something)
 end
 
 --finding the nth instance of a plugin matching a given name on a route to store its PBD:ID
---a plugin with the same same can easily appear twice or more on a track
+--a plugin with the same name can easily appear twice or more on a track
 ---------------------------------------------------------------------
 function get_nth_plugin_id_by_name(route_id, name, nth_match) --nth_match 0: first match
 	local r=Session:route_by_id(PBD.ID(route_id))
@@ -93,7 +95,7 @@ function get_nth_plugin_id_by_name(route_id, name, nth_match) --nth_match 0: fir
 	--try and error
 	repeat
 		-- get Nth Ardour::Processor
-		proc = t:nth_plugin (i)
+		proc = r:nth_plugin (i)
 		if (not proc:isnil() and proc:display_name () == name) then
 			if matches == nth_match then
 				return proc:to_stateful():id():to_s()
@@ -112,9 +114,45 @@ function get_plugin_id_by_index(route_id, index)
 	local r=Session:route_by_id(PBD.ID(route_id))
 	if r:isnil() then return nil end
 
-	local proc = t:nth_plugin (index)
+	local proc = r:nth_plugin (index)
 	if proc:isnil() then return nil end
 
 	return proc:to_stateful():id():to_s()
 end
 
+--finding the nth instance of a plugin parameter name matching a given name on a route to store its index
+--a plugin with two or more equal parameter names can not be ruled out
+---------------------------------------------------------------------
+function get_nth_plugin_parameter_index_by_name(plugin_id, name, nth_match) --nth_match 0: first match
+	local proc=Session:processor_by_id(PBD.ID(plugin_id))
+	if proc:isnil() then return nil end
+
+	local pinsert=proc:to_insert()
+	if pinsert:isnil() then return nil end
+
+	local plugin=pinsert:plugin(0)
+	--this includes both input AND output ports
+	local param_count=plugin:parameter_count()
+	--print(param_count)
+
+	local matches=0
+
+	for param_index=0,param_count-1 do
+		local _,pd = plugin:get_parameter_descriptor(param_index,ARDOUR.ParameterDescriptor())
+		-- t[2].label --.. " " .. t[2].lower .. " " .. t[2].upper
+		if pd[2].label == name then
+			if matches == nth_match then
+				--local ctrl = Evoral.Parameter(ARDOUR.AutomationType.PluginAutomation,0,param_index)
+				return param_index
+			else
+				matches=matches+1
+			end
+		end
+	end
+	return nil
+end -- get_nth_plugin_parameter_index_by_name()
+
+--test1()
+local rid=get_route_id_by_index(0)
+local pid=get_nth_plugin_id_by_name(rid, '0-SD', 0)
+local ppi=get_nth_plugin_parameter_index_by_name(pid,'Status',0)
