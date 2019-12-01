@@ -35,10 +35,10 @@ function dsp_params ()
 			min = 2, max = 11, default = 11, integer = true },
 		{ ["type"] = "input",
 			name = "DisplayFormat", --2
-			doc = "Show as frames (default) or seconds",
+			doc = "Show as samples (default) or seconds",
 			min = 0, max = 1, default = 0, enum = true, scalepoints =
 			{
-				["Frames"] = 0,
+				["Samples"] = 0,
 				["Seconds"] = 1,
 			}
 		},
@@ -86,8 +86,17 @@ function dsp_runmap (bufs, in_map, out_map, n_samples, offset)
 	else
 		tbl['transport_rolling'] = 0
 	end
-	tbl['samplerate'] = Session:nominal_frame_rate ()
-	tbl['playhead_pos'] = Session:transport_frame ()
+
+	if _G['Session']['nominal_frame_rate'] ~= nil then
+--5.x
+		tbl['samplerate'] = Session:nominal_frame_rate ()
+		tbl['playhead_pos'] = Session:transport_frame ()
+	else
+--6.x
+		tbl['samplerate'] = Session:nominal_sample_rate ()
+		tbl['playhead_pos'] = Session:transport_sample ()
+	end
+
 	tbl['transport_speed'] = Session:transport_speed()
 	tbl['last_transport_start_pos'] = Session:last_transport_start()
 	tbl['prev_marker_pos'] = Session:locations():first_mark_before(tbl['playhead_pos'], false)
@@ -137,13 +146,13 @@ function render_inline (ctx, w, max_h)
 		txt:show_in_cairo_context (ctx)
 	end
 	-------------------------------------------------------------------------------
-	function frames_to_seconds (frames)
-		return frames / tbl['samplerate']
+	function samples_to_seconds (samples)
+		return samples / tbl['samplerate']
 	end
 
 	-------------------------------------------------------------------------------
 	local line_count = math.floor (ctrl[1])
-	local display_frames_as = math.floor (ctrl[2])
+	local display_samples_as = math.floor (ctrl[2])
 
 	if (w > max_h) then
 		h = max_h
@@ -171,7 +180,7 @@ function render_inline (ctx, w, max_h)
 	draw_key_value_line (0, "Transport", "", 0)
 	draw_key_value_line (1, transport_text, string.format ("%.2f", tbl['transport_speed']), 0)
 
-	if display_frames_as == 0 then
+	if display_samples_as == 0 then
 		draw_key_value_line (2, "phd", string.format ("%d", tbl['playhead_pos']), 1 )
 		draw_key_value_line (3, "lst", string.format ("%d", tbl['last_transport_start_pos']), 1 )
 		draw_key_value_line (4, "len", string.format ("%d", (tbl['playhead_pos'] - tbl['last_transport_start_pos'])), 1 )
@@ -181,16 +190,16 @@ function render_inline (ctx, w, max_h)
 		draw_key_value_line (8, "loe", string.format ("%d", (tbl['playhead_pos'] - tbl['loop_end_pos'])), 1 )
 		draw_key_value_line (9, "prv", string.format ("%d", (tbl['playhead_pos'] - tbl['prev_marker_pos'])), 1 )
 		draw_key_value_line (10, "nxt", string.format ("%d", (tbl['playhead_pos'] - tbl['next_marker_pos'])), 1 )
-	elseif display_frames_as == 1 then
-		draw_key_value_line (2, "phd", string.format ("%.2f", frames_to_seconds(tbl['playhead_pos']) ), 1 )
-		draw_key_value_line (3, "lst", string.format ("%.2f", frames_to_seconds(tbl['last_transport_start_pos'])), 1 )
-		draw_key_value_line (4, "len", string.format ("%.2f", frames_to_seconds((tbl['playhead_pos'] - tbl['last_transport_start_pos']))), 1 )
-		draw_key_value_line (5, "ses", string.format ("%.2f", frames_to_seconds((tbl['playhead_pos'] - tbl['session_start_pos']))), 1 )
-		draw_key_value_line (6, "see", string.format ("%.2f", frames_to_seconds((tbl['playhead_pos'] - tbl['session_end_pos']))), 1 )
-		draw_key_value_line (7, "los", string.format ("%.2f", frames_to_seconds((tbl['playhead_pos'] - tbl['loop_start_pos']))), 1 )
-		draw_key_value_line (8, "loe", string.format ("%.2f", frames_to_seconds((tbl['playhead_pos'] - tbl['loop_end_pos']))), 1 )
-		draw_key_value_line (9, "prv", string.format ("%.2f", frames_to_seconds((tbl['playhead_pos'] - tbl['prev_marker_pos']))), 1 )
-		draw_key_value_line (10, "nxt", string.format ("%.2f", frames_to_seconds((tbl['playhead_pos'] - tbl['next_marker_pos']))), 1 )
+	elseif display_samples_as == 1 then
+		draw_key_value_line (2, "phd", string.format ("%.2f", samples_to_seconds(tbl['playhead_pos']) ), 1 )
+		draw_key_value_line (3, "lst", string.format ("%.2f", samples_to_seconds(tbl['last_transport_start_pos'])), 1 )
+		draw_key_value_line (4, "len", string.format ("%.2f", samples_to_seconds((tbl['playhead_pos'] - tbl['last_transport_start_pos']))), 1 )
+		draw_key_value_line (5, "ses", string.format ("%.2f", samples_to_seconds((tbl['playhead_pos'] - tbl['session_start_pos']))), 1 )
+		draw_key_value_line (6, "see", string.format ("%.2f", samples_to_seconds((tbl['playhead_pos'] - tbl['session_end_pos']))), 1 )
+		draw_key_value_line (7, "los", string.format ("%.2f", samples_to_seconds((tbl['playhead_pos'] - tbl['loop_start_pos']))), 1 )
+		draw_key_value_line (8, "loe", string.format ("%.2f", samples_to_seconds((tbl['playhead_pos'] - tbl['loop_end_pos']))), 1 )
+		draw_key_value_line (9, "prv", string.format ("%.2f", samples_to_seconds((tbl['playhead_pos'] - tbl['prev_marker_pos']))), 1 )
+		draw_key_value_line (10, "nxt", string.format ("%.2f", samples_to_seconds((tbl['playhead_pos'] - tbl['next_marker_pos']))), 1 )
 	end
 
 	return {w, h}
