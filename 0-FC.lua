@@ -67,7 +67,7 @@ end -- dsp_params()
 function dsp_init (rate)
 	local tbl = {}
 	tbl['samplerate'] = 0
-	tbl['frames_since_start'] = 0
+	tbl['samples_since_start'] = 0
 	tbl['track_selection']=0
 	tbl['track_index']=0
 	tbl['fader_level']=0
@@ -92,8 +92,15 @@ function dsp_runmap (bufs, in_map, out_map, n_samples, offset)
 	local ctrl = CtrlPorts:array ()
 	local tbl = self:table ():get ()
 
-	tbl['samplerate'] = Session:nominal_frame_rate ()
-	tbl['frames_since_start'] = tbl['frames_since_start'] + n_samples
+	if _G['Session']['nominal_frame_rate'] ~= nil then
+--5.x
+		tbl['samplerate'] = Session:nominal_frame_rate ()
+        else
+--6.x
+		tbl['samplerate'] = Session:nominal_sample_rate ()
+        end
+
+	tbl['samples_since_start'] = tbl['samples_since_start'] + n_samples
 
 	tbl['track_selection']=math.floor(ctrl[1])
 	tbl['track_index']=math.floor(ctrl[2])
