@@ -67,12 +67,12 @@ end -- dsp_params()
 function dsp_init (rate)
 	local tbl = {}
 	tbl['n_channels']=0
-	tbl['samplerate'] = 0
-	tbl['frames_since_start'] = 0
+	tbl['samplerate']=0
+	tbl['samples_since_start']=0
 	tbl['under_range_count']=0
 	tbl['over_range_count']=0
-	tbl['last_change_frames']=0
-	tbl['last_change_confirmed_frames']=0
+	tbl['last_change_samples']=0
+	tbl['last_change_confirmed_samples']=0
 	self:table ():set (tbl);
 	print ("'0-SD.lua' initialized (dsp_init).")
 end -- dsp_init()
@@ -93,15 +93,22 @@ function dsp_runmap (bufs, in_map, out_map, n_samples, offset)
 	local ctrl = CtrlPorts:array()
 	local tbl = self:table ():get ()
 
-	tbl['samplerate'] = Session:nominal_frame_rate ()
-	tbl['frames_since_start'] = tbl['frames_since_start'] + n_samples
+	if _G['Session']['nominal_frame_rate'] ~= nil then
+--5.x
+		tbl['samplerate'] = Session:nominal_frame_rate ()
+	else
+--6.x
+		tbl['samplerate'] = Session:nominal_sample_rate ()
+	end
+
+	tbl['samples_since_start'] = tbl['samples_since_start'] + n_samples
 
 	-- startup condition
-	if tbl['frames_since_start'] == n_samples then
+	if tbl['samples_since_start'] == n_samples then
 		ctrl[5]=0
 		ctrl[6]=0
-		tbl['last_change_frames']=tbl['frames_since_start']
-		tbl['last_change_confirmed_frames']=tbl['frames_since_start']
+		tbl['last_change_samples']=tbl['samples_since_start']
+		tbl['last_change_confirmed_samples']=tbl['samples_since_start']
 		self:table ():set (tbl)
 	end
 
@@ -122,27 +129,27 @@ function dsp_runmap (bufs, in_map, out_map, n_samples, offset)
 			if a < threshold then
 				tbl['under_range_count']=tbl['under_range_count']+1
 				if not(ctrl[5] == 0) then --if previous cycle wasn't the same
-					tbl['last_change_frames']=tbl['frames_since_start'] --reset timer
+					tbl['last_change_samples']=tbl['samples_since_start'] --reset timer
 					ctrl[5]=0
 				end
 
-				if not (ctrl[6] == 0) and tbl['frames_since_start'] - tbl['last_change_frames'] > ctrl[2] * tbl['samplerate'] then
+				if not (ctrl[6] == 0) and tbl['samples_since_start'] - tbl['last_change_samples'] > ctrl[2] * tbl['samplerate'] then
 					ctrl[6] = 0
-					tbl['last_change_confirmed_frames']=tbl['frames_since_start']
-					print("under TRIGGER " .. tbl['frames_since_start'] .. " " .. tbl['last_change_frames'])
+					tbl['last_change_confirmed_samples']=tbl['samples_since_start']
+					print("under TRIGGER " .. tbl['samples_since_start'] .. " " .. tbl['last_change_samples'])
 				end
 
 			else
 				tbl['over_range_count']=tbl['over_range_count']+1
 				if not(ctrl[5] == 1) then
-					tbl['last_change_frames']=tbl['frames_since_start']
+					tbl['last_change_samples']=tbl['samples_since_start']
 					ctrl[5]=1
 				end
 
-				if not (ctrl[6] == 1) and tbl['frames_since_start'] - tbl['last_change_frames'] > ctrl[3] * tbl['samplerate'] then
+				if not (ctrl[6] == 1) and tbl['samples_since_start'] - tbl['last_change_samples'] > ctrl[3] * tbl['samplerate'] then
 					ctrl[6] = 1
-					tbl['last_change_confirmed_frames']=tbl['frames_since_start']
-					print("over TRIGGER " .. tbl['frames_since_start'] .. " " .. tbl['last_change_frames'])
+					tbl['last_change_confirmed_samples']=tbl['samples_since_start']
+					print("over TRIGGER " .. tbl['samples_since_start'] .. " " .. tbl['last_change_samples'])
 				end
 			end
 		end -- valid channel mapping
