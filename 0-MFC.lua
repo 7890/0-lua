@@ -87,7 +87,7 @@ leave me a comment if anything doesn't work as you'd expect
 -------------------------------------------------------------------------------
 function dsp_ioconfig ()
 	-- -1, -1 = any number of channels as long as input and output count matches
-	return { { audio_in = -1, audio_out = -1}, }
+	return { { midi_in = 0, midi_out = 1, audio_in = -1, audio_out = -1}, }
 end
 
 local sense_plugin='0-SD'
@@ -98,6 +98,14 @@ local control_plugin_input_TrackSelection='TrackSelection'
 local control_plugin_input_TrackIndex='TrackIndex'
 local control_plugin_input_FadeAction='FadeAction'
 
+local midi_event = { 0xb0, 0x50, 0x00 }
+--all 3 bytes will be updated based on
+--    -channel (user setting)
+--    -cc      (user setting)
+--    -active track index (dynamic evaluation)
+
+local current_track_index=0
+
 -- control port(s)
 -------------------------------------------------------------------------------
 function dsp_params ()
@@ -105,7 +113,7 @@ function dsp_params ()
 	{
 		{ ["type"] = "input",
 			name = "TrackIndexStart", --1
-			doc = "Track index of track with highest priority",
+			doc = "Track index of track with highest priority.",
 			min = 0, max = 15, default = 0, integer = true },
 		{ ["type"] = "input",
 			name = "TrackCount", --2
@@ -115,6 +123,22 @@ function dsp_params ()
 			name = "ActiveTrackIndex", --3
 			doc = "The index of the currently active (faded in) track.",
 			min = 0, max = 15, default = 0, integer = true },
+		{ ["type"] = "input",
+			name = "SendMidi", --4
+			doc = "If enabled, notify track index change via MIDI.",
+			min = 0, max = 1, default = 1, toggled = true },
+		{ ["type"] = "input",
+			name = "SendMidiContinuous", --5
+			doc = "If enabled, notify active track index in each cycle via MIDI.",
+			min = 0, max = 1, default = 0, toggled = true },
+		{ ["type"] = "input",
+			name = "SendMidiChannel", --6
+			doc = "Set the MIDI channel to be used for sending out notifications.",
+			min = 1, max = 16, default = 1, integer = true },
+		{ ["type"] = "input",
+			name = "SendMidiCC", --7
+			doc = "Set the MIDI controller number to be used for sending out notifications.",
+			min = 0, max = 101, default = 80, integer = true },
 	}
 end -- dsp_params()
 
@@ -266,14 +290,33 @@ function fade_out(rid)
 end -- fade_in()
 
 -------------------------------------------------------------------------------
-function dsp_runmap (bufs, in_map, out_map, n_samples, offset)
-	-- passthrough all data
-	ARDOUR.DSP.process_map (bufs, in_map, out_map, n_samples, offset, ARDOUR.DataType ("audio"))
-	ARDOUR.DSP.process_map (bufs, in_map, out_map, n_samples, offset, ARDOUR.DataType ("midi"))
+--function dsp_runmap (bufs, in_map, out_map, n_samples, offset)
+
+function dsp_run (_, _, n_samples)
+
+	assert (type(midiout) == "table")
+	local cnt = 1;
+
+	function tx_midi (time, data)
+		midiout[cnt] = {}
+		midiout[cnt]["time"] = time;
+		midiout[cnt]["data"] = data;
+		cnt = cnt + 1;
+	end
 
 	local ctrl = CtrlPorts:array ()
 	local first_track_index=math.floor(ctrl[1])
 	local track_count=math.floor(ctrl[2])
+	local current_track_index=math.floor(ctrl[3])
+
+	local send_midi=math.floor(ctrl[4])
+	local send_midi_cont=math.floor(ctrl[5])
+
+	local send_midi_channel=math.floor(ctrl[6])
+	local send_midi_cc=math.floor(ctrl[7])
+
+	midi_event[1]=(0xb0 + (send_midi_channel - 1)) --set channel
+	midi_event[2]=send_midi_cc --set cc number
 
 	local function fade_out_all_except(index)
 		--print ("fade out except index " .. index)
@@ -295,7 +338,22 @@ function dsp_runmap (bufs, in_map, out_map, n_samples, offset)
 				if val1 == 1 then
 					fade_out_all_except(track_index)
 					fade_in(track_index)
-					ctrl[3]=track_index
+
+					if not (current_track_index == track_index) then
+						print ('MFC: switch to track index '..track_index )
+						ctrl[3]=track_index --set current/new active track
+						midi_event[3]=track_index --indicate active channel as controller value
+						--notify when change happened
+						if (send_midi == 1) and (send_midi_cont == 0) then
+							tx_midi(1, midi_event)
+						end
+					end
+
+					--if continous notification is enabled
+					if (send_midi == 1) and (send_midi_cont == 1) then
+						tx_midi(1, midi_event)
+					end
+
 					break;
 				elseif val1 == 0 then
 					fade_out(track_index)
